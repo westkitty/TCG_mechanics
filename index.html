@@ -1,0 +1,1273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>TCG Mechanics Lab</title>
+<style>
+/*
+  TCG Mechanics Lab
+  - Single file, touch-first tablet experience
+  - Layout: sticky header + content + bottom nav
+  - Uses CSS variables for quick theming and text scaling
+*/
+:root {
+  --bg: #0f172a;
+  --card: #111827;
+  --muted: #cbd5e1;
+  --text: #e2e8f0;
+  --accent: #38bdf8;
+  --accent-2: #f472b6;
+  --accent-3: #facc15;
+  --border: #1f2937;
+  --radius: 18px;
+  --shadow: 0 10px 30px rgba(0,0,0,0.3);
+  --padding: 16px;
+  --text-scale: 1;
+}
+body.high-contrast {
+  --bg: #000;
+  --card: #111;
+  --text: #fff;
+  --muted: #ddd;
+  --accent: #40e0d0;
+  --accent-2: #ff7af6;
+  --accent-3: #ffe066;
+  --border: #333;
+}
+body.small-text { --text-scale: 0.95; }
+body.large-text { --text-scale: 1.12; }
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Inter", "SF Pro Display", system-ui, -apple-system, sans-serif;
+  font-size: calc(16px * var(--text-scale));
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: linear-gradient(180deg, rgba(0,0,0,0.65), rgba(0,0,0,0));
+  padding: 10px var(--padding);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+header .title {
+  flex: 1;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+header .subtitle { font-size: 12px; color: var(--muted); }
+header .actions {
+  display: flex;
+  gap: 8px;
+}
+button, .chip, .segmented button {
+  touch-action: manipulation;
+  border: none;
+  outline: none;
+  border-radius: 14px;
+  padding: 12px 16px;
+  font-weight: 700;
+  background: var(--accent);
+  color: #0b1221;
+  min-height: 44px;
+  min-width: 44px;
+  box-shadow: var(--shadow);
+}
+button.secondary {
+  background: #1f2937;
+  color: var(--text);
+  box-shadow: none;
+  border: 1px solid var(--border);
+}
+button.ghost { background: transparent; box-shadow: none; border: 1px solid var(--border); }
+button.full { width: 100%; }
+button.small { padding: 8px 12px; min-height: 38px; }
+main { padding: 0 var(--padding) 90px; }
+.panel { display: none; }
+.panel.active { display: block; }
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--padding);
+  margin-bottom: 14px;
+  box-shadow: var(--shadow);
+}
+.card h3, .card h4 { margin: 0 0 6px; }
+.card .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.toggle { display: flex; align-items: center; gap: 12px; justify-content: space-between; }
+.switch {
+  width: 64px; height: 34px; border-radius: 20px; background: #1f2937; position: relative; border: 1px solid var(--border);
+}
+.switch::after {
+  content: ""; position: absolute; top: 3px; left: 3px; width: 28px; height: 28px; background: #fff; border-radius: 50%; transition: transform 0.2s;
+}
+.switch.on { background: var(--accent); }
+.switch.on::after { transform: translateX(30px); }
+.accordion { border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); margin-bottom: 12px; }
+.accordion summary { list-style: none; cursor: pointer; padding: 16px; background: #0b1221; font-weight: 800; }
+.accordion[open] summary { background: #0d1629; }
+.accordion summary::-webkit-details-marker { display: none; }
+.grid-two {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px;
+}
+.bottom-nav {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  display: grid; grid-template-columns: repeat(5, 1fr);
+  background: #0b1221; border-top: 1px solid var(--border);
+  z-index: 20;
+}
+.bottom-nav button {
+  border-radius: 0;
+  padding: 12px 4px;
+  font-size: 13px;
+  flex-direction: column;
+  display: flex; align-items: center; justify-content: center;
+  background: transparent; color: var(--muted);
+  box-shadow: none; border: none;
+}
+.bottom-nav button.active { color: var(--accent-3); }
+.section-header {
+  position: sticky; top: 46px; z-index: 5; padding: 8px 0; background: linear-gradient(180deg, rgba(0,0,0,0.8), transparent);
+}
+.search-bar { display: flex; gap: 10px; margin-bottom: 10px; }
+.search-bar input, textarea, input[type=number] {
+  width: 100%; padding: 14px; border-radius: 14px; border: 1px solid var(--border); background: #0b1221; color: var(--text);
+  min-height: 44px; font-size: 16px;
+}
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { background: #1f2937; color: var(--muted); border-radius: 999px; padding: 10px 14px; font-weight: 700; border: 1px solid var(--border); }
+.chip.active { background: var(--accent); color: #0b1221; }
+.segmented { display: flex; gap: 8px; }
+.badge { padding: 6px 10px; background: #1f2937; border-radius: 12px; color: var(--muted); font-weight: 700; }
+.list-row { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-radius: 12px; background: #0b1221; margin-bottom: 8px; border: 1px solid var(--border); }
+.sheet, .modal {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 50; display: none; align-items: flex-end;
+}
+.sheet .content, .modal .content {
+  background: var(--card); width: 100%; border-radius: 24px 24px 0 0; padding: 20px; max-height: 90vh; overflow-y: auto;
+}
+.modal.center { align-items: center; justify-content: center; }
+.modal.center .content { width: min(720px, 94vw); border-radius: 20px; }
+.fab {
+  position: fixed; bottom: 90px; right: 16px; background: var(--accent-2); color: #0b1221; padding: 18px 20px; border-radius: 20px; box-shadow: var(--shadow);
+  z-index: 15;
+}
+.log { background: #0b1221; border: 1px solid var(--border); border-radius: 16px; padding: 10px; max-height: 200px; overflow: auto; }
+.inline-chart { display: flex; gap: 4px; align-items: flex-end; height: 40px; }
+.inline-chart div { flex: 1; background: var(--accent); border-radius: 6px 6px 0 0; min-width: 6px; }
+@media (min-width: 900px) {
+  main { padding: 0 32px 100px; }
+  .grid-two { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="title">TCG Mechanics Lab<br><span class="subtitle" id="versionLabel"></span><br><span class="subtitle" id="headerSummary"></span></div>
+  <div class="actions">
+    <button class="small secondary" id="undoBtn" aria-label="Undo">↺</button>
+    <button class="small secondary" id="redoBtn" aria-label="Redo">↻</button>
+    <button class="small" id="paletteBtn" aria-label="Command Palette">⌘</button>
+    <button class="small secondary" id="contrastQuick" aria-label="Toggle contrast">☀︎</button>
+  </div>
+</header>
+<main>
+  <section id="mechanics" class="panel active" aria-label="Mechanics tab"></section>
+  <section id="ruleset" class="panel" aria-label="Ruleset tab"></section>
+  <section id="cards" class="panel" aria-label="Cards tab"></section>
+  <section id="sandbox" class="panel" aria-label="Sandbox tab"></section>
+  <section id="metrics" class="panel" aria-label="Metrics tab"></section>
+</main>
+<nav class="bottom-nav" aria-label="Bottom navigation">
+  <button data-tab="mechanics" class="active">MECHANICS</button>
+  <button data-tab="ruleset">RULESET</button>
+  <button data-tab="cards">CARDS</button>
+  <button data-tab="sandbox">SANDBOX</button>
+  <button data-tab="metrics">METRICS</button>
+</nav>
+<button class="fab" id="newCardFab">＋ New Card</button>
+<div class="sheet" id="cardEditor">
+  <div class="content">
+    <div class="row" style="justify-content: space-between; align-items: center;">
+      <h3>Edit Card</h3>
+      <button class="secondary small" id="closeEditor">Close</button>
+    </div>
+    <div class="card">
+      <div class="row"><label for="cardName">Name</label><input id="cardName" aria-label="Card name"></div>
+      <div class="row"><label>Cost</label><div class="row"><button class="secondary small" data-step="-1" data-field="cost">-</button><div class="badge" id="costBadge">0</div><button class="secondary small" data-step="1" data-field="cost">+</button></div></div>
+      <div class="row"><label>Type</label><div class="segmented" id="typeSeg"></div></div>
+      <div class="row"><label>Faction</label><div class="chips" id="factionChips"></div></div>
+      <div class="row"><label>Tags</label><div class="chips" id="tagPicker"></div></div>
+      <div class="row"><label>Rarity</label><div class="segmented" id="raritySeg"></div></div>
+      <div class="row"><label>Stats</label><div class="row"><button class="secondary small" data-step="-1" data-field="attack">-</button><div class="badge" id="atkBadge">1</div><button class="secondary small" data-step="1" data-field="attack">+</button><span style="width:6px"></span><button class="secondary small" data-step="-1" data-field="health">-</button><div class="badge" id="hpBadge">1</div><button class="secondary small" data-step="1" data-field="health">+</button></div></div>
+      <div class="row"><label>Rules</label><textarea id="rulesText" rows="3"></textarea></div>
+      <div class="row"><label>Rules Templates</label><div class="chips" id="rulesTemplates"></div></div>
+      <div class="row"><label>Effect DSL</label><textarea id="dslText" rows="5" aria-label="Effect DSL input"></textarea></div>
+      <div class="row"><label>DSL Templates</label><div class="chips" id="dslTemplates"></div></div>
+      <div class="row"><label>Test Target</label><select id="dslTarget" aria-label="DSL target" style="flex:1; min-height:44px; border-radius:12px; padding:10px; background:#0b1221; color:var(--text); border:1px solid var(--border);"><option value="dummy">Dummy</option><option value="enemy">Enemy</option><option value="ally">Ally</option></select></div>
+      <div class="row"><button class="secondary" id="toggleFavorite">Mark Favorite</button></div>
+      <div class="row"><div id="dslHelp" class="badge">Grammar: event:action target amount | cond -> action</div></div>
+      <div class="row"><button class="secondary" id="validateDsl">Validate DSL</button><button class="secondary" id="testDsl">Test Effect</button></div>
+      <div class="row" id="dslStatus" aria-live="polite"></div>
+      <div class="card" id="cardPreview" aria-live="polite"></div>
+      <button class="full" id="saveCard">Save Card</button>
+    </div>
+  </div>
+</div>
+<div class="modal" id="palette" aria-modal="true" role="dialog">
+  <div class="content">
+    <div class="row" style="justify-content: space-between; align-items: center;">
+      <h3>Command Palette</h3>
+      <button class="secondary small" id="closePalette">Close</button>
+    </div>
+    <div class="search-bar"><input id="paletteSearch" placeholder="Search actions"></div>
+    <div id="paletteActions"></div>
+  </div>
+</div>
+<div class="modal" id="gestureSheet" aria-modal="true" role="dialog">
+  <div class="content">
+    <div class="row" style="justify-content: space-between; align-items: center;">
+      <h3>Quick Gestures</h3>
+      <button class="secondary small" id="closeGestures">Close</button>
+    </div>
+    <ul>
+      <li>Swipe left/right: switch tabs</li>
+      <li>Long-press a card: open context menu</li>
+      <li>Drag card: move between zones</li>
+      <li>Two-finger pan: (optional) board pan</li>
+    </ul>
+  </div>
+</div>
+<div class="modal center" id="exportSheet" aria-modal="true" role="dialog">
+  <div class="content">
+    <div class="row" style="justify-content: space-between; align-items: center;">
+      <h3>Export / Import</h3>
+      <button class="secondary small" id="closeExport">Close</button>
+    </div>
+    <div class="badge">Schema v1</div>
+    <textarea id="exportText" rows="8"></textarea>
+    <div class="row"><button class="secondary" id="copyExport">Copy</button><button class="secondary" id="importData">Paste & Import</button></div>
+  </div>
+</div>
+<div class="modal center" id="howToModal" aria-modal="true" role="dialog">
+  <div class="content">
+    <div class="row" style="justify-content: space-between; align-items: center;">
+      <h3>How to use (Tablet)</h3>
+      <button class="secondary small" id="closeHowTo">Close</button>
+    </div>
+    <ul>
+      <li>Swipe or tap tabs at bottom to navigate.</li>
+      <li>Use the big toggles in Mechanics to craft your mix.</li>
+      <li>Generate or Mutate a ruleset, then tap cards to edit quickly.</li>
+      <li>Long-press save slots to overwrite/duplicate; tap to load.</li>
+      <li>Drag cards on the Sandbox board; tap a hand card for actions.</li>
+      <li>Use Export/Import or the Command Palette (⌘) for quick actions.</li>
+      <li>Mark favorites in the card editor, then filter with the Favorites chip.</li>
+    </ul>
+    <button class="secondary full" id="openGesturesFromHow">View gestures</button>
+  </div>
+</div>
+<script>
+// ------------------------------------------------------------
+// Data & State
+// ------------------------------------------------------------
+const APP_VERSION = '1.1.0';
+const defaultMechanicCategories = [
+  {
+    name: "Resource systems",
+    modules: [
+      {id:"energy-pips", title:"Energy Pips", desc:"Gain pips each turn, bank up to limit", details:"Players start with 1 pip, +1 per turn, cap 10.", on:true, params:{cap:10}},
+      {id:"dual-resource", title:"Dual Resource", desc:"Mana + Influence tracks", details:"Influence spent to unlock traits", on:false, params:{}}
+    ]
+  },
+  {
+    name: "Combat/damage models",
+    modules: [
+      {id:"lanes", title:"Lanes", desc:"Assign attackers to 3 lanes", details:"Left/mid/right lanes, overrun on empty", on:true},
+      {id:"stack", title:"Stack", desc:"Responses go on a stack", details:"Spells queue; resolve top-first", on:true}
+    ]
+  },
+  {
+    name: "Timing/priority",
+    modules: [
+      {id:"speed-tiers", title:"Speed Tiers", desc:"Fast vs slow spells", details:"Fast can respond, slow only main", on:true},
+      {id:"initiative", title:"Initiative Token", desc:"Token passes on spell cast", details:"Whoever casts passes token", on:false}
+    ]
+  },
+  {
+    name: "Targeting/positioning",
+    modules: [
+      {id:"frontline", title:"Frontline", desc:"Protect backline", details:"Units in back can't be attacked unless frontline empty", on:true},
+      {id:"taunt", title:"Taunt", desc:"Marked units must be hit", details:"Units with Taunt redirect attacks", on:false}
+    ]
+  },
+  {
+    name: "Card flow",
+    modules: [
+      {id:"mulligan", title:"Mulligan", desc:"Redraw some cards", details:"One free partial mulligan", on:true},
+      {id:"cycling", title:"Cycle", desc:"Pay to replace a card", details:"Pay 1, discard then draw", on:true}
+    ]
+  },
+  {
+    name: "Win conditions",
+    modules: [
+      {id:"boss", title:"Boss Damage", desc:"Damage boss to 30", details:"Life totals at 30", on:true},
+      {id:"alt-runes", title:"Rune Victory", desc:"Collect runes to win", details:"3 runes collected wins", on:false}
+    ]
+  },
+  {
+    name: "Randomness/variance knobs",
+    modules: [
+      {id:"seeded", title:"Seeded RNG", desc:"Deterministic with seed", details:"Same seed = same draws", on:true},
+      {id:"chaos", title:"Chaos Shards", desc:"Random effects spike", details:"Shards add chaos level", on:false}
+    ]
+  },
+  {
+    name: "Synergy tags/tribes",
+    modules: [
+      {id:"tech", title:"Tech", desc:"Robots + gadgets", details:"Tech cards buff each other", on:true},
+      {id:"wild", title:"Wild", desc:"Beasts pack hunt", details:"Pack hunt grants attack", on:true}
+    ]
+  },
+  {
+    name: "Status effects",
+    modules: [
+      {id:"frost", title:"Frost", desc:"Skip action", details:"Frozen units skip next attack", on:false},
+      {id:"mark", title:"Mark", desc:"Marked units take extra dmg", details:"+2 damage to marked", on:true}
+    ]
+  },
+  {
+    name: "Economy + progression",
+    modules: [
+      {id:"market", title:"Market", desc:"Buy cards mid match", details:"Shared row of 3 cards", on:true},
+      {id:"levelup", title:"Level-Up", desc:"Units evolve", details:"Pay resource to evolve", on:false}
+    ]
+  }
+];
+
+const demoCards = (seed=1, tags=['Core']) => {
+  const rng = rngFromSeed(seed);
+  const types = ["Unit","Spell","Trap"];
+  const factions = ["Solar","Umbral","Wild","Tech","Neutral"];
+  const rarities = ["Common","Uncommon","Rare","Legendary"];
+  return (new Array(20)).fill(0).map((_,i)=>{
+    const type = types[Math.floor(rng()*types.length)];
+    const faction = factions[Math.floor(rng()*factions.length)];
+    const rarity = rarities[Math.floor(rng()*rarities.length)];
+    const tag = tags[i%tags.length] || 'Core';
+    return {
+      id: `demo-${i}`,
+      name: `${tag} Prototype ${i+1}`,
+      cost: 1 + Math.floor(rng()*6),
+      type,
+      faction,
+      tags: [tag],
+      rarity,
+      attack: 1 + Math.floor(rng()*5),
+      health: 2 + Math.floor(rng()*5),
+      favorite: false,
+      rules: type==='Spell' ? `If ${tag}, deal 2 then draw.` : `On play, gain +${Math.floor(rng()*2)+1}/+${Math.floor(rng()*2)+1} this turn.`,
+      dsl: type==='Spell' ? "onPlay: dealDamage target:randomEnemy amount:2" : "onPlay: buff target:self amount:+1/+1"
+    };
+  });
+};
+
+const defaultState = () => ({
+  tab: 'mechanics',
+  mechanics: defaultMechanicCategories,
+  mechanicsSearch: '',
+  mechanicsOpen: {},
+  mechanicsFilter: 'all',
+  cardSearch: '',
+  cardSort: 'cost',
+  cardFavoritesOnly: false,
+  cardTypeFilter: 'all',
+  cardCostRange: [0,6],
+  cardTagFilter: 'all',
+  ruleset: {
+    seed: 1337,
+    summary: '',
+    lastReason: 'initial',
+    slots: [null,null,null,null,null,null],
+    exportVersion: 1
+  },
+  cards: demoCards(),
+  selectedCardId: null,
+  sandbox: {
+    deterministic: true,
+    seed: 4242,
+    drawIndex: 0,
+    handA: [0,1,2,3,4].map(i=>`demo-${i}`),
+    handB: [5,6,7,8,9].map(i=>`demo-${i}`),
+    fieldA: [], fieldB: [],
+    log: ["Match ready: seeded draws"],
+    turn: 1
+  },
+  metrics: {},
+  settings: { highContrast:false, textScale:'m', haptics:true },
+  lastSaved: '',
+  history: [], future: []
+});
+
+let state = loadState() || defaultState();
+hydrateStateDefaults();
+updateMetrics();
+
+// ------------------------------------------------------------
+// Utility helpers
+// ------------------------------------------------------------
+function saveState(pushHistory=true){
+  state.lastSaved = new Date().toLocaleTimeString();
+  localStorage.setItem('tcg-lab-state', JSON.stringify(state));
+  const badge = document.getElementById('lastSavedBadge'); if(badge) badge.innerText = `Saved ${state.lastSaved}`;
+  if(pushHistory){
+    state.history.push(JSON.parse(JSON.stringify(state))); // naive deep clone
+    if(state.history.length>30) state.history.shift();
+    state.future = [];
+  }
+}
+function loadState(){
+  const raw = localStorage.getItem('tcg-lab-state');
+  if(!raw) return null;
+  try { return JSON.parse(raw); } catch(e){ return null; }
+}
+function hydrateStateDefaults(){
+  state.mechanicsOpen = state.mechanicsOpen || {};
+  state.mechanicsFilter = state.mechanicsFilter || 'all';
+  state.cardSearch = state.cardSearch || '';
+  state.cardSort = state.cardSort || 'cost';
+  state.cardFavoritesOnly = state.cardFavoritesOnly || false;
+  state.cardTypeFilter = state.cardTypeFilter || 'all';
+  state.cardCostRange = state.cardCostRange || [0,6];
+  state.cardTagFilter = state.cardTagFilter || 'all';
+  if(!state.sandbox.seed) state.sandbox.seed = state.ruleset?.seed || 4242;
+  if(state.sandbox.drawIndex===undefined) state.sandbox.drawIndex = 0;
+  state.cards.forEach(c=>{ if(c.favorite===undefined) c.favorite=false; });
+}
+function vibrate(ms=10){ if(state.settings.haptics && navigator.vibrate) navigator.vibrate(ms); }
+function setTab(tab){
+  state.tab = tab; renderTabs(); renderPanels(); saveState(false);
+}
+function renderTabs(){
+  document.querySelectorAll('.bottom-nav button').forEach(btn=>{
+    const active = btn.dataset.tab===state.tab;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-pressed', active);
+  });
+}
+function clone(obj){ return JSON.parse(JSON.stringify(obj)); }
+function randomChoice(arr, seed){
+  let x = Math.sin(seed++)*10000; return {val: arr[Math.floor((x - Math.floor(x))*arr.length)], seed};
+}
+function rngFromSeed(seed=1){
+  let x = seed || 1;
+  return ()=>{ x = Math.sin(x++)*10000; return x - Math.floor(x); };
+}
+function shuffle(arr, seed=1){
+  const r = rngFromSeed(seed);
+  const res = [...arr];
+  for(let i=res.length-1;i>0;i--){
+    const j = Math.floor(r()* (i+1));
+    [res[i], res[j]] = [res[j], res[i]];
+  }
+  return res;
+}
+
+// ------------------------------------------------------------
+// Mechanics Tab
+// ------------------------------------------------------------
+function renderMechanics(){
+  const wrap = document.getElementById('mechanics');
+  wrap.innerHTML = '';
+  const header = document.createElement('div');
+  header.className = 'section-header';
+  header.innerHTML = `
+    <div class="search-bar">
+      <input id="mechanicSearch" placeholder="Search mechanics" value="${state.mechanicsSearch}" aria-label="Search mechanics">
+      <button class="secondary" id="clearSearch">Clear</button>
+    </div>
+    <div class="row">
+      <button id="randomPick">Random Pick</button>
+      <button class="secondary" id="clearAll">Clear All</button>
+      <button class="secondary" id="gesturesBtn">Quick Gestures</button>
+      <button class="secondary" id="expandAll">Expand All</button>
+      <button class="secondary" id="collapseAll">Collapse All</button>
+      <button class="secondary" id="invertSel">Invert</button>
+      <button class="secondary" id="randomThree">Random 3</button>
+    </div>`;
+  wrap.appendChild(header);
+  const countRow = document.createElement('div');
+  countRow.className = 'row';
+  countRow.innerHTML = `<div class="badge">Active ${state.mechanics.flatMap(c=>c.modules).filter(m=>m.on).length} / ${state.mechanics.flatMap(c=>c.modules).length}</div><div class="chips" id="mechFilterChips"></div>`;
+  wrap.appendChild(countRow);
+  state.mechanics.forEach(cat=>{
+    const details = document.createElement('details');
+    details.className = 'accordion';
+    const open = state.mechanicsOpen[cat.name];
+    details.open = open===undefined ? true : !!open;
+    const filtered = cat.modules.filter(m=> m.title.toLowerCase().includes(state.mechanicsSearch.toLowerCase()));
+    details.innerHTML = `<summary>${cat.name} <span class="badge">${filtered.filter(m=>m.on).length}/${cat.modules.length}</span></summary>`;
+    const inner = document.createElement('div');
+    filtered.filter(m=> state.mechanicsFilter==='on'?m.on:true).forEach(mod=>{
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `
+        <div class="toggle">
+          <div>
+            <h4>${mod.title}</h4>
+            <div>${mod.desc}</div>
+          </div>
+          <div class="switch ${mod.on?'on':''}" data-id="${mod.id}" role="switch" aria-checked="${mod.on}"></div>
+        </div>
+        <div class="row" style="justify-content:flex-end; gap:6px;">
+          <button class="secondary small" data-cat-on="${cat.name}">All On</button>
+          <button class="secondary small" data-cat-off="${cat.name}">All Off</button>
+        </div>
+        <button class="secondary small" data-expand="${mod.id}">Details</button>
+        <div class="badge" id="detail-${mod.id}" style="display:none">${mod.details || 'No details'}</div>`;
+      inner.appendChild(card);
+    });
+    details.appendChild(inner);
+    wrap.appendChild(details);
+    details.addEventListener('toggle', ()=>{ state.mechanicsOpen[cat.name] = details.open; saveState(false); });
+  });
+  document.getElementById('mechanicSearch').addEventListener('input', e=>{state.mechanicsSearch=e.target.value; renderMechanics(); saveState(false);});
+  document.getElementById('clearSearch').addEventListener('click', ()=>{state.mechanicsSearch=''; renderMechanics();});
+  document.getElementById('randomPick').addEventListener('click', ()=>{
+    const flat = state.mechanics.flatMap(c=>c.modules);
+    const pick = flat[Math.floor(Math.random()*flat.length)];
+    pick.on = true; vibrate(); rulesetChanged('random pick');
+  });
+  document.getElementById('randomThree').addEventListener('click', ()=>{
+    const flat = state.mechanics.flatMap(c=>c.modules);
+    state.mechanics.forEach(c=>c.modules.forEach(m=>m.on=false));
+    shuffle(flat, state.ruleset.seed).slice(0,3).forEach(m=>m.on=true);
+    vibrate(); rulesetChanged('random trio');
+  });
+  document.getElementById('clearAll').addEventListener('click', ()=>{
+    state.mechanics.forEach(c=>c.modules.forEach(m=>m.on=false));
+    rulesetChanged('clear all');
+  });
+  document.getElementById('gesturesBtn').addEventListener('click', openGestureGuide);
+  document.getElementById('expandAll').addEventListener('click', ()=>{ state.mechanicsOpen = Object.fromEntries(state.mechanics.map(c=>[c.name,true])); renderMechanics(); saveState(false); });
+  document.getElementById('collapseAll').addEventListener('click', ()=>{ state.mechanicsOpen = Object.fromEntries(state.mechanics.map(c=>[c.name,false])); renderMechanics(); saveState(false); });
+  document.getElementById('invertSel').addEventListener('click', ()=>{ state.mechanics.forEach(c=>c.modules.forEach(m=>m.on=!m.on)); rulesetChanged('invert'); });
+  const mechFilterChips = document.getElementById('mechFilterChips');
+  ['all','on'].forEach(opt=>{ const chip=document.createElement('div'); chip.className='chip'+(state.mechanicsFilter===opt?' active':''); chip.textContent=opt==='all'?'Show All':'Only ON'; chip.addEventListener('pointerdown', ()=>{ state.mechanicsFilter=opt; renderMechanics(); saveState(false); }); mechFilterChips.appendChild(chip); });
+  wrap.querySelectorAll('.switch').forEach(sw=>{
+    sw.addEventListener('pointerdown', ()=>{
+      const id = sw.dataset.id;
+      state.mechanics.forEach(c=>c.modules.forEach(m=>{ if(m.id===id) m.on=!m.on; }));
+      vibrate(); rulesetChanged('toggle');
+    });
+  });
+  wrap.querySelectorAll('[data-expand]').forEach(btn=>{
+    btn.addEventListener('pointerdown', ()=>{
+      const id = btn.dataset.expand;
+      const det = document.getElementById('detail-'+id);
+      det.style.display = det.style.display==='none'?'block':'none';
+    });
+  });
+  wrap.querySelectorAll('[data-cat-on]').forEach(btn=>{
+    btn.addEventListener('pointerdown', ()=>{ const cat=btn.dataset.catOn; state.mechanics.find(c=>c.name===cat).modules.forEach(m=>m.on=true); rulesetChanged('cat all on'); });
+  });
+  wrap.querySelectorAll('[data-cat-off]').forEach(btn=>{
+    btn.addEventListener('pointerdown', ()=>{ const cat=btn.dataset.catOff; state.mechanics.find(c=>c.name===cat).modules.forEach(m=>m.on=false); rulesetChanged('cat all off'); });
+  });
+}
+
+// ------------------------------------------------------------
+// Ruleset Tab
+// ------------------------------------------------------------
+function updateRulesetSummary(){
+  const active = state.mechanics.flatMap(c=>c.modules.filter(m=>m.on).map(m=>m.title));
+  state.ruleset.summary = active.slice(0,6).join(', ')+(active.length>6?` +${active.length-6} more`:'' ) || 'No mechanics selected';
+}
+function regenerateDemoCards(reason='ruleset change'){
+  const tags = state.mechanics.flatMap(c=>c.modules.filter(m=>m.on).map(m=>m.title.split(' ')[0])).slice(0,6);
+  const deck = demoCards(state.ruleset.seed, tags.length?tags:['Core']);
+  const custom = state.cards.filter(c=>!c.id.startsWith('demo-'));
+  state.cards = deck.concat(custom);
+  state.sandbox.handA = deck.slice(0,5).map(c=>c.id);
+  state.sandbox.handB = deck.slice(5,10).map(c=>c.id);
+  state.sandbox.fieldA = [];
+  state.sandbox.fieldB = [];
+  state.sandbox.drawIndex = 0;
+  state.sandbox.seed = state.ruleset.seed;
+  state.sandbox.log.push(`Demo deck refreshed (${reason})`);
+}
+function rulesetChanged(reason='ruleset change', persist=true){
+  state.ruleset.lastReason = reason;
+  updateRulesetSummary();
+  regenerateDemoCards(reason);
+  updateMetrics();
+  updateHeaderSummary();
+  if(persist) saveState();
+  if(state.tab==='mechanics') renderMechanics();
+  if(state.tab==='ruleset') renderRuleset();
+  if(state.tab==='cards') renderCards();
+  if(state.tab==='sandbox') renderSandbox();
+  if(state.tab==='metrics') renderMetrics();
+}
+function generateCocktail(){
+  let seed = state.ruleset.seed;
+  const flat = state.mechanics.flatMap(c=>c.modules);
+  flat.forEach(m=>m.on=false);
+  for(let i=0;i<6;i++){
+    const res = randomChoice(flat, seed);
+    seed = res.seed;
+    res.val.on = true;
+  }
+  vibrate(); rulesetChanged('cocktail');
+}
+function mutateRuleset(intensity){
+  const flat = state.mechanics.flatMap(c=>c.modules);
+  for(let i=0;i<intensity;i++){
+    const onMods = flat.filter(m=>m.on);
+    if(onMods.length){ onMods[Math.floor(Math.random()*onMods.length)].on=false; }
+    flat[Math.floor(Math.random()*flat.length)].on=true;
+  }
+  vibrate(); rulesetChanged('mutate');
+}
+function explainRuleset(){
+  const active = state.mechanics.flatMap(c=>c.modules.filter(m=>m.on));
+  const risks = [];
+  if(active.find(m=>m.id==='market')) risks.push('Market can create snowball if economy loops.');
+  if(active.find(m=>m.id==='lanes')) risks.push('Lanes can stall if no reach tools.');
+  if(active.find(m=>m.id==='stack')) risks.push('Stack + fast spells = potential runaway counter wars.');
+  const constraints = ['Limit draw to 2 per turn','Cap buffs at +6','Add soft removal for big units'];
+  return {
+    explanation: active.map(m=>`${m.title}: ${m.desc}`).join('\n'),
+    risks: risks.length?risks:['Low risk combo'],
+    constraints
+  };
+}
+function saveSlot(idx){
+  state.ruleset.slots[idx] = { mechanics: clone(state.mechanics), seed: state.ruleset.seed, name: state.ruleset.slots[idx]?.name || `Slot ${idx+1}`};
+  saveState(); renderRuleset(); vibrate();
+}
+function loadSlot(idx){
+  const slot = state.ruleset.slots[idx];
+  if(!slot) return;
+  state.mechanics = clone(slot.mechanics);
+  state.ruleset.seed = slot.seed;
+  rulesetChanged('load slot');
+}
+function slotActions(idx){
+  const slot = state.ruleset.slots[idx];
+  const options = [];
+  if(slot) options.push({label:'Load', fn:()=>loadSlot(idx)});
+  options.push({label:'Overwrite', fn:()=>saveSlot(idx)});
+  if(slot) options.push({label:'Duplicate to new slot', fn:()=>{
+    const empty = state.ruleset.slots.findIndex(s=>!s);
+    if(empty>=0){ state.ruleset.slots[empty] = clone(slot); renderRuleset(); saveState(); }
+  }});
+  if(slot) options.push({label:'Rename', fn:()=>{ const name = prompt('Rename slot', slot.name||`Slot ${idx+1}`); if(name){ slot.name=name; saveState(); renderRuleset(); } }});
+  if(slot) options.push({label:'Delete', fn:()=>{ state.ruleset.slots[idx]=null; saveState(); renderRuleset(); }});
+  const chosen = prompt('Slot action: ' + options.map((o,i)=>`[${i+1}] ${o.label}`).join(' '));
+  const idxChoice = Number(chosen)-1;
+  if(options[idxChoice]) options[idxChoice].fn();
+}
+function renderRuleset(){
+  const wrap = document.getElementById('ruleset');
+  updateRulesetSummary();
+  wrap.innerHTML = '';
+  const summary = document.createElement('div');
+  summary.className='card';
+  const activeCount = state.mechanics.flatMap(c=>c.modules).filter(m=>m.on).length;
+  summary.innerHTML = `<h3>Ruleset Summary</h3><div>${state.ruleset.summary}</div><div class="badge">Seed ${state.ruleset.seed}</div><div class="badge">Active ${activeCount}</div><div class="badge">Last change: ${state.ruleset.lastReason}</div>`;
+  wrap.appendChild(summary);
+  const controls = document.createElement('div');
+  controls.className='card';
+  controls.innerHTML = `
+    <div class="row">
+      <label>Seed</label>
+      <div class="row">
+        <button class="secondary small" id="seedDown">-</button>
+        <input type="number" id="seedInput" value="${state.ruleset.seed}" style="width:120px;">
+        <button class="secondary small" id="seedUp">+</button>
+        <button class="secondary" id="seedRoll">🎲</button>
+      </div>
+    </div>
+    <div class="row"><button id="generate">Generate Cocktail</button><button class="secondary" id="mutate">Mutate</button><input type="range" id="mutateRange" min="1" max="3" value="1" aria-label="Mutate intensity"></div>
+    <div class="row"><button class="secondary" id="explain">Explain Ruleset</button><button class="secondary" id="exportBtn">Export / Import</button></div>
+    <div id="explainBox" class="badge"></div>
+  `;
+  wrap.appendChild(controls);
+  const slots = document.createElement('div');
+  slots.className='grid-two';
+  state.ruleset.slots.forEach((slot,idx)=>{
+    const tile = document.createElement('div');
+    tile.className='card';
+    tile.dataset.slot = idx;
+    const seedTag = slot? `<div class="badge">Seed ${slot.seed}</div>` : '';
+    tile.innerHTML = `<div class="row" style="justify-content: space-between; align-items:center;"><strong>${slot?.name || `Slot ${idx+1}`}</strong><div class="badge">${slot?'Saved':'Empty'}</div></div><div>${slot?slot.mechanics.flatMap(c=>c.modules.filter(m=>m.on).map(m=>m.title)).slice(0,3).join(', '):'Tap to save'}</div>${seedTag}`;
+    tile.addEventListener('pointerdown', (e)=>{
+      const start = Date.now();
+      const timer = setTimeout(()=>{ slotActions(idx); }, 700);
+      const up = ()=>{ clearTimeout(timer); if(Date.now()-start<600){ slot?loadSlot(idx):saveSlot(idx); } document.removeEventListener('pointerup', up); };
+      document.addEventListener('pointerup', up);
+    });
+    slots.appendChild(tile);
+  });
+  wrap.appendChild(slots);
+  document.getElementById('seedDown').addEventListener('pointerdown', ()=>{state.ruleset.seed--; rulesetChanged('seed step');});
+  document.getElementById('seedUp').addEventListener('pointerdown', ()=>{state.ruleset.seed++; rulesetChanged('seed step');});
+  document.getElementById('seedRoll').addEventListener('pointerdown', ()=>{state.ruleset.seed=Math.floor(Math.random()*9999); rulesetChanged('seed roll');});
+  document.getElementById('seedInput').addEventListener('input', e=>{state.ruleset.seed=Number(e.target.value); rulesetChanged('seed input');});
+  document.getElementById('generate').addEventListener('pointerdown', generateCocktail);
+  document.getElementById('mutate').addEventListener('pointerdown', ()=>mutateRuleset(Number(document.getElementById('mutateRange').value)));
+  document.getElementById('explain').addEventListener('pointerdown', ()=>{
+    const ex = explainRuleset();
+    document.getElementById('explainBox').innerText = `${ex.explanation}\nRisks: ${ex.risks.join('; ')}\nConstraints: ${ex.constraints.join('; ')}`;
+  });
+  document.getElementById('exportBtn').addEventListener('pointerdown', ()=>{
+    const payload = {version: state.ruleset.exportVersion, mechanics: state.mechanics, cards: state.cards, sandbox: {seed: state.sandbox.seed, deterministic: state.sandbox.deterministic}, exportedAt: new Date().toISOString()};
+    document.getElementById('exportText').value = JSON.stringify(payload, null, 2);
+    toggleModal('exportSheet', true);
+  });
+}
+
+// ------------------------------------------------------------
+// Cards Tab
+// ------------------------------------------------------------
+const typeOptions = ['Unit','Spell','Trap'];
+const factionOptions = ['Solar','Umbral','Wild','Tech','Neutral'];
+const rarityOptions = ['Common','Uncommon','Rare','Legendary'];
+const tagOptions = ['Tech','Wild','Heroic','Support','Burn','Frost','Mark'];
+const ruleTemplates = ['On play, draw 1 card.','When destroyed, summon a 1/1 Bot.','On attack, deal 1 to enemy hero.','When you gain a resource, gain +1/+1 this turn.'];
+const dslTemplates = ['onPlay: dealDamage target:randomEnemy amount:2','onDeath: summon target:self token:Bot1','onAttack if hasTag:Tech -> buff target:self amount:+1/+0','onTurnStart: gainResource amount:1'];
+
+function renderCards(){
+  const wrap = document.getElementById('cards');
+  wrap.innerHTML = '';
+  const filtered = state.cards
+    .filter(c=>c.name.toLowerCase().includes(state.cardSearch.toLowerCase()))
+    .filter(c=> state.cardFavoritesOnly ? c.favorite : true)
+    .filter(c=> state.cardTypeFilter==='all' ? true : c.type===state.cardTypeFilter)
+    .filter(c=> c.cost>=state.cardCostRange[0] && c.cost<=state.cardCostRange[1])
+    .filter(c=> state.cardTagFilter==='all' ? true : (c.tags||[]).includes(state.cardTagFilter))
+    .sort((a,b)=>{
+      if(state.cardSort==='cost') return a.cost-b.cost;
+      if(state.cardSort==='rarity') return a.rarity.localeCompare(b.rarity);
+      return a.name.localeCompare(b.name);
+    });
+  const header = document.createElement('div');
+  header.className='section-header';
+  const typeCounts = {
+    Unit: state.cards.filter(c=>c.type==='Unit').length,
+    Spell: state.cards.filter(c=>c.type==='Spell').length,
+    Trap: state.cards.filter(c=>c.type==='Trap').length
+  };
+  header.innerHTML = `
+    <div class="search-bar">
+      <input id="cardSearch" placeholder="Search cards" value="${state.cardSearch}" aria-label="Search cards">
+      <button class="secondary" id="clearCardSearch">Clear</button>
+    </div>
+    <div class="row" style="gap:8px; flex-wrap:wrap;">
+      <div class="badge">Cards ${state.cards.length} | Units ${typeCounts.Unit} | Spells ${typeCounts.Spell} | Traps ${typeCounts.Trap}</div>
+      <div class="chips" id="cardSortChips"></div><div class="badge">Showing ${filtered.length} / ${state.cards.length}</div>
+      <div class="chips" id="cardFilterChips"></div>
+      <div class="row" style="gap:6px;">
+        <label>Type</label><div class="chips" id="cardTypeChips"></div>
+      </div>
+      <div class="row" style="gap:6px;">
+        <label>Cost</label>
+        <input type="range" id="costMin" min="0" max="6" value="${state.cardCostRange[0]}" aria-label="Min cost" style="width:120px;">
+        <input type="range" id="costMax" min="0" max="6" value="${state.cardCostRange[1]}" aria-label="Max cost" style="width:120px;">
+        <div class="badge" id="costRangeLabel">${state.cardCostRange[0]} - ${state.cardCostRange[1]}</div>
+      </div>
+      <div class="row" style="gap:6px;">
+        <label>Tag</label><div class="chips" id="tagFilterChips"></div>
+      </div>
+      <button class="secondary" id="resetDemo">Reset to Demo</button>
+      <button class="secondary" id="clearFilters">Clear Filters</button>
+    </div>`;
+  wrap.appendChild(header);
+  const list = document.createElement('div');
+  filtered.forEach(card=>{
+      const item = document.createElement('div');
+      item.className='card';
+      item.style.minHeight='120px';
+      const rarityColor = {Common:'#94a3b8',Uncommon:'#34d399',Rare:'#60a5fa',Legendary:'#fbbf24'}[card.rarity] || '#e2e8f0';
+      item.innerHTML = `
+        <div class="row" style="justify-content: space-between; align-items:center;">
+        <div><h4>${card.name}</h4><div>${card.type} • ${card.faction} • Cost ${card.cost}</div><div class="badge" style="background:${rarityColor}; color:#0b1221;">${card.rarity}</div><div class="badge">${card.attack}/${card.health}</div><div>${card.rules}</div></div>
+        <div class="row" style="gap:6px;">
+          <button class="secondary small" data-fav="${card.id}">${card.favorite?'★ Fav':'☆ Fav'}</button>
+          <button class="secondary small" data-dup="${card.id}">Duplicate</button>
+          <button class="secondary small" data-edit="${card.id}">Edit</button>
+        </div>
+      </div>`;
+    item.addEventListener('contextmenu', e=>{e.preventDefault(); openCardEditor(card.id);});
+    item.addEventListener('pointerdown', ()=>openCardEditor(card.id));
+    list.appendChild(item);
+  });
+  wrap.appendChild(list);
+  const sortChips = document.getElementById('cardSortChips');
+  ['cost','rarity','name'].forEach(opt=>{ const c=document.createElement('div'); c.className='chip'+(state.cardSort===opt?' active':''); c.textContent=`Sort ${opt}`; c.addEventListener('pointerdown', ()=>{ state.cardSort=opt; renderCards(); saveState(false); }); sortChips.appendChild(c); });
+  const filterChips = document.getElementById('cardFilterChips');
+  const favChip=document.createElement('div'); favChip.className='chip'+(state.cardFavoritesOnly?' active':''); favChip.textContent='Favorites'; favChip.addEventListener('pointerdown', ()=>{ state.cardFavoritesOnly=!state.cardFavoritesOnly; renderCards(); saveState(false); }); filterChips.appendChild(favChip);
+  const typeChips = document.getElementById('cardTypeChips');
+  ['all','Unit','Spell','Trap'].forEach(opt=>{ const c=document.createElement('div'); c.className='chip'+(state.cardTypeFilter===opt?' active':''); c.textContent=opt==='all'?'All types':opt; c.addEventListener('pointerdown', ()=>{ state.cardTypeFilter=opt; renderCards(); saveState(false); }); typeChips.appendChild(c); });
+  const tagFilterChips = document.getElementById('tagFilterChips');
+  ['all',...tagOptions].forEach(opt=>{ const c=document.createElement('div'); c.className='chip'+(state.cardTagFilter===opt?' active':''); c.textContent=opt==='all'?'All tags':opt; c.addEventListener('pointerdown', ()=>{ state.cardTagFilter=opt; renderCards(); saveState(false); }); tagFilterChips.appendChild(c); });
+  document.getElementById('cardSearch').addEventListener('input', e=>{ state.cardSearch=e.target.value; renderCards(); saveState(false); });
+  document.getElementById('clearCardSearch').addEventListener('pointerdown', ()=>{ state.cardSearch=''; renderCards(); saveState(false); });
+  const updateCostRange=()=>{ const min=Number(document.getElementById('costMin').value); const max=Number(document.getElementById('costMax').value); state.cardCostRange=[Math.min(min,max), Math.max(min,max)]; document.getElementById('costRangeLabel').innerText = `${state.cardCostRange[0]} - ${state.cardCostRange[1]}`; renderCards(); saveState(false); };
+  document.getElementById('costMin').addEventListener('input', updateCostRange);
+  document.getElementById('costMax').addEventListener('input', updateCostRange);
+  document.getElementById('clearFilters').addEventListener('pointerdown', ()=>{ state.cardSearch=''; state.cardSort='cost'; state.cardFavoritesOnly=false; state.cardTypeFilter='all'; state.cardCostRange=[0,6]; state.cardTagFilter='all'; renderCards(); saveState(false); });
+  document.getElementById('resetDemo').addEventListener('pointerdown', ()=>{ regenerateDemoCards('reset cards'); updateMetrics(); saveState(); renderCards(); renderMetrics(); });
+  wrap.querySelectorAll('[data-fav]').forEach(btn=>{ btn.addEventListener('pointerdown', ()=>{ const card=state.cards.find(c=>c.id===btn.dataset.fav); if(card){ card.favorite=!card.favorite; saveState(); renderCards(); } }); });
+  wrap.querySelectorAll('[data-dup]').forEach(btn=>{ btn.addEventListener('pointerdown', ()=>{ const card=state.cards.find(c=>c.id===btn.dataset.dup); if(card){ const cloneCard = {...card, id:`copy-${Date.now()}`, name:card.name+' Copy'}; state.cards.push(cloneCard); saveState(); renderCards(); updateMetrics(); } }); });
+}
+
+function openCardEditor(id){
+  state.selectedCardId = id;
+  const card = state.cards.find(c=>c.id===id) || {id: `custom-${Date.now()}`, name:'New Card', cost:1, type:'Unit', faction:'Neutral', tags:[], rarity:'Common', attack:1, health:1, rules:'', dsl:'', favorite:false};
+  const setSeg = (wrapId, options, val)=>{
+    const wrap = document.getElementById(wrapId); wrap.innerHTML='';
+    options.forEach(opt=>{
+      const btn=document.createElement('button'); btn.className='secondary'; btn.textContent=opt; btn.dataset.val=opt; btn.style.flex='1'; btn.classList.toggle('active', opt===val);
+      btn.addEventListener('pointerdown', ()=>{ card[wrapId.includes('type')?'type':wrapId.includes('rarity')?'rarity':'faction']=opt; openCardEditor(card.id); });
+      wrap.appendChild(btn);
+    });
+  };
+  document.getElementById('cardName').value = card.name;
+  document.getElementById('dslText').value = card.dsl;
+  document.getElementById('rulesText').value = card.rules;
+  document.getElementById('costBadge').innerText = card.cost;
+  document.getElementById('atkBadge').innerText = card.attack;
+  document.getElementById('hpBadge').innerText = card.health;
+  setSeg('typeSeg', typeOptions, card.type);
+  setSeg('raritySeg', rarityOptions, card.rarity);
+  const chips = document.getElementById('factionChips'); chips.innerHTML='';
+  factionOptions.forEach(opt=>{ const c=document.createElement('div'); c.className='chip'+(card.faction===opt?' active':''); c.textContent=opt; c.addEventListener('pointerdown', ()=>{ card.faction=opt; openCardEditor(card.id); }); chips.appendChild(c); });
+  const tagWrap = document.getElementById('tagPicker'); tagWrap.innerHTML='';
+  tagOptions.forEach(opt=>{ const c=document.createElement('div'); c.className='chip'+(card.tags.includes(opt)?' active':''); c.textContent=opt; c.addEventListener('pointerdown', ()=>{ if(card.tags.includes(opt)) card.tags=card.tags.filter(t=>t!==opt); else card.tags.push(opt); openCardEditor(card.id); }); tagWrap.appendChild(c); });
+  const tempWrap = document.getElementById('rulesTemplates'); tempWrap.innerHTML='';
+  ruleTemplates.forEach(t=>{ const c=document.createElement('div'); c.className='chip'; c.textContent=t; c.addEventListener('pointerdown', ()=>{ document.getElementById('rulesText').value = t; }); tempWrap.appendChild(c); });
+  const dslTempWrap = document.getElementById('dslTemplates');
+  if(dslTempWrap){
+    dslTempWrap.innerHTML='';
+    dslTemplates.forEach(t=>{ const c=document.createElement('div'); c.className='chip'; c.textContent=t; c.addEventListener('pointerdown', ()=>{ document.getElementById('dslText').value = t; validateDSL(t); }); dslTempWrap.appendChild(c); });
+  }
+  const rarityColor = {Common:'#94a3b8',Uncommon:'#34d399',Rare:'#60a5fa',Legendary:'#fbbf24'}[card.rarity] || '#e2e8f0';
+  const preview = document.getElementById('cardPreview');
+  preview.innerHTML = `<strong>${card.name}</strong><div>${card.type} • ${card.faction} • ${card.rarity}</div><div class="badge">Cost ${card.cost} • ${card.attack}/${card.health}</div><div>${card.rules || 'Rules text preview'}</div>`;
+  preview.style.border = `1px solid ${rarityColor}`;
+  const dslHelp = document.getElementById('dslHelp'); dslHelp.innerText = 'Events: onPlay/onDraw/onAttack/onDamage/onDeath/onTurnStart/onTurnEnd; Targets: self, ally, enemy, randomEnemy, allAllies, allEnemies; Actions: dealDamage/heal/draw/discard/buff/debuff/summon/gainResource/spendResource/addStatus/removeStatus; Conditions: if/hasTag/hasStatus/resourceAtLeast; Example: \"onAttack if hasTag:Tech -> buff target:self amount:+1/+0\"';
+  const favBtn = document.getElementById('toggleFavorite'); favBtn.innerText = card.favorite ? 'Unfavorite' : 'Mark Favorite'; favBtn.onclick = ()=>{ card.favorite=!card.favorite; favBtn.innerText = card.favorite ? 'Unfavorite' : 'Mark Favorite'; };
+  document.getElementById('cardEditor').style.display='flex';
+  document.getElementById('saveCard').onclick = ()=>{
+    card.name = document.getElementById('cardName').value;
+    card.rules = document.getElementById('rulesText').value;
+    card.dsl = document.getElementById('dslText').value;
+    state.cards = state.cards.filter(c=>c.id!==card.id).concat(card);
+    vibrate(); saveState(); renderCards(); updateMetrics(); renderSandbox(); renderMetrics(); toggleModal('cardEditor', false);
+  };
+  document.querySelectorAll('[data-step]').forEach(btn=>{
+    btn.onclick = ()=>{
+      const field = btn.dataset.field;
+      const delta = Number(btn.dataset.step);
+      card[field] = Math.max(0, (card[field]||0) + delta);
+      openCardEditor(card.id);
+    };
+  });
+  document.getElementById('validateDsl').onclick = ()=>{ validateDSL(card.dsl || document.getElementById('dslText').value); };
+  document.getElementById('testDsl').onclick = ()=>{ const msg = runDsl(card.dsl || document.getElementById('dslText').value, {target:document.getElementById('dslTarget').value || 'dummy'}); document.getElementById('dslStatus').innerText = msg; };
+}
+
+function validateDSL(text){
+  const status = document.getElementById('dslStatus');
+  const lines = text.split('\n').filter(Boolean);
+  status.style.color = varSafe('--text');
+  if(!lines.length){ status.innerText='DSL empty'; status.style.color='var(--accent-3)'; return false; }
+  const allowedEvents = ['onPlay','onDraw','onAttack','onDamage','onDeath','onTurnStart','onTurnEnd'];
+  const allowedTargets = ['self','enemy','ally','randomEnemy','randomAlly','allEnemies','allAllies'];
+  const allowedActions = ['dealDamage','heal','draw','discard','buff','debuff','summon','gainResource','spendResource','addStatus','removeStatus'];
+  for(const line of lines){
+    const [eventPart, actionPart] = line.split(':').map(s=>s.trim());
+    if(!allowedEvents.includes(eventPart.split(' ')[0])) { status.innerText = `Unknown event in "${line}"`; status.style.color='var(--accent-3)'; return false; }
+    const tokens = actionPart.split(' ');
+    const actionToken = tokens[0];
+    if(!allowedActions.includes(actionToken)) { status.innerText = `Unknown action in "${line}"`; status.style.color='var(--accent-3)'; return false; }
+    if(line.includes('target:')){
+      const t = line.split('target:')[1].split(' ')[0];
+      if(!allowedTargets.includes(t)){ status.innerText = `Bad target in "${line}"`; status.style.color='var(--accent-3)'; return false; }
+    }
+  }
+  status.innerText = `DSL valid (${lines.length} line${lines.length===1?'':'s'})`; status.style.color='var(--accent)'; return true;
+}
+function varSafe(v){ return getComputedStyle(document.body).getPropertyValue(v) || '#fff'; }
+function runDsl(text, ctx){
+  if(!validateDSL(text)) return 'Cannot run: invalid DSL';
+  return `Dry-run OK vs ${ctx.target || 'dummy target'}`;
+}
+
+// ------------------------------------------------------------
+// Sandbox Tab
+// ------------------------------------------------------------
+function renderSandbox(){
+  const wrap = document.getElementById('sandbox');
+  wrap.innerHTML = '';
+  const header = document.createElement('div');
+  header.className='section-header';
+  header.innerHTML = `<div class="row"><div class="badge">Turn ${state.sandbox.turn}</div><div class="badge">Mode: ${state.sandbox.deterministic?'Seeded':'Swingy'}</div><div class="badge">Seed ${state.sandbox.seed}</div><button class="secondary" id="seedReroll">🎲 Seed</button><button class="secondary" id="toggleSeeded">Deterministic (${state.sandbox.deterministic? 'On':'Off'})</button><button class="secondary" id="resetMatch">Reset Match</button></div>`;
+  wrap.appendChild(header);
+  const board = document.createElement('div');
+  board.className='card';
+  const renderZone = (title, list, zoneId)=>{
+    const zone = document.createElement('div');
+    zone.innerHTML = `<div class="row" style="justify-content: space-between;"><h4>${title}</h4><div class="row" style="gap:6px;"><div class="badge">${list.length}</div><button class="secondary small" data-zone="${zoneId}">Add</button></div></div>`;
+    const area = document.createElement('div'); area.className='grid-two';
+    list.forEach(cid=>{
+      const card = state.cards.find(c=>c.id===cid) || {name:'Unknown',cost:0,type:'Unit',attack:0,health:0};
+      const item = document.createElement('div'); item.className='card'; item.innerHTML = `<strong>${card.name}</strong><div>${card.type} • Cost ${card.cost}</div><div class="badge">${card.attack}/${card.health}</div>`;
+      item.style.touchAction='none';
+      item.addEventListener('pointerdown', e=>startDrag(e, cid, zoneId));
+      area.appendChild(item);
+    });
+    zone.appendChild(area); return zone;
+  };
+  board.appendChild(renderZone('Player A Field', state.sandbox.fieldA, 'fieldA'));
+  board.appendChild(renderZone('Player B Field', state.sandbox.fieldB, 'fieldB'));
+  const handWrap = document.createElement('div');
+  handWrap.innerHTML = `<h4>Player A Hand <span class="badge">${state.sandbox.handA.length}</span> <span class="badge">Deck ${state.cards.length}</span></h4>`;
+  const hand = document.createElement('div'); hand.style.display='flex'; hand.style.overflowX='auto'; hand.style.gap='10px'; hand.style.padding='6px';
+  state.sandbox.handA.forEach(cid=>{
+    const card = state.cards.find(c=>c.id===cid);
+    const item = document.createElement('div'); item.className='card'; item.style.minWidth='160px'; item.innerHTML = `<strong>${card.name}</strong><div>${card.type}</div><div class="badge">${card.attack}/${card.health}</div>`;
+    item.addEventListener('pointerdown', e=>{
+      e.stopPropagation();
+      showHandActionSheet(cid);
+    });
+    item.addEventListener('pointermove', e=>e.preventDefault());
+    hand.appendChild(item);
+  });
+  handWrap.appendChild(hand);
+  board.appendChild(handWrap);
+  const actions = document.createElement('div'); actions.className='row'; actions.style.position='sticky'; actions.style.bottom='120px'; actions.style.gap='8px';
+  actions.innerHTML = `<button class="secondary" id="drawBtn">Draw</button><button class="secondary" id="drawTwoBtn">Draw 2</button><button class="secondary" id="refillHand">Refill 5</button><button class="secondary" id="shuffleHand">Shuffle Hand</button><button class="secondary" id="clearHand">Clear Hand</button><button class="secondary" id="endTurnBtn">End Turn</button><button class="secondary" id="resolveBtn">Resolve Stack</button><button class="secondary" id="resetBoard">Reset Board</button>`;
+  board.appendChild(actions);
+  const log = document.createElement('div'); log.className='card'; log.innerHTML = `<div class="row" style="justify-content: space-between;"><h4>Event Log</h4><button class="secondary small" id="clearLog">Clear</button></div><div class="log" id="logBox"></div>`;
+  wrap.appendChild(board);
+  wrap.appendChild(log);
+  const logBox = document.getElementById('logBox'); logBox.innerHTML = state.sandbox.log.map(l=>`<div>${l}</div>`).join('');
+  logBox.scrollTop = logBox.scrollHeight;
+  document.getElementById('clearLog').addEventListener('pointerdown', ()=>{state.sandbox.log=[]; renderSandbox(); saveState();});
+  document.getElementById('drawBtn').addEventListener('pointerdown', ()=>{ drawCard('A'); });
+  document.getElementById('drawTwoBtn').addEventListener('pointerdown', ()=>{ drawCard('A'); drawCard('A'); });
+  document.getElementById('refillHand').addEventListener('pointerdown', ()=>{ state.sandbox.handA=[]; for(let i=0;i<5;i++) drawCard('A'); });
+  document.getElementById('shuffleHand').addEventListener('pointerdown', ()=>{ state.sandbox.handA = shuffle(state.sandbox.handA, state.sandbox.seed); logEvent('Hand shuffled'); saveState(); renderSandbox(); });
+  document.getElementById('clearHand').addEventListener('pointerdown', ()=>{ state.sandbox.handA=[]; logEvent('Hand cleared'); saveState(); renderSandbox(); });
+  document.getElementById('endTurnBtn').addEventListener('pointerdown', ()=>{ state.sandbox.turn++; logEvent('End turn'); saveState(); renderSandbox(); });
+  document.getElementById('resolveBtn').addEventListener('pointerdown', ()=>{ logEvent('Stack resolved'); saveState(); renderSandbox(); });
+  document.getElementById('resetBoard').addEventListener('pointerdown', resetBoard);
+  document.getElementById('seedReroll').addEventListener('pointerdown', ()=>{ state.sandbox.seed = Math.floor(Math.random()*9999); state.sandbox.drawIndex=0; logEvent(`Sandbox seed -> ${state.sandbox.seed}`); saveState(); renderSandbox(); });
+  document.getElementById('toggleSeeded').addEventListener('pointerdown', ()=>{ state.sandbox.deterministic=!state.sandbox.deterministic; if(state.sandbox.deterministic) state.sandbox.drawIndex=0; logEvent(`Deterministic ${state.sandbox.deterministic?'enabled':'disabled'}`); saveState(); renderSandbox();});
+  document.getElementById('resetMatch').addEventListener('pointerdown', ()=>{ state.sandbox = defaultState().sandbox; saveState(); renderSandbox(); });
+  wrap.querySelectorAll('[data-zone]').forEach(btn=>btn.addEventListener('pointerdown', ()=>{ addCardToZone(btn.dataset.zone); }));
+}
+
+let dragInfo = null;
+function startDrag(e, cardId, fromZone){
+  dragInfo = {cardId, fromZone};
+  document.body.style.opacity = 0.98;
+  const move = (ev)=>{ ev.preventDefault(); };
+  const up = (ev)=>{
+    document.body.style.opacity = 1;
+    const dropZone = ev.target.closest('[data-zone]');
+    if(dropZone){ moveCard(cardId, fromZone, dropZone.dataset.zone); }
+    document.removeEventListener('pointermove', move);
+    document.removeEventListener('pointerup', up);
+    dragInfo = null;
+  };
+  document.addEventListener('pointermove', move);
+  document.addEventListener('pointerup', up);
+}
+function moveCard(id, from, to){
+  if(from===to) return;
+  ['handA','handB','fieldA','fieldB'].forEach(zone=>{
+    const idx = state.sandbox[zone].indexOf(id);
+    if(idx>=0) state.sandbox[zone].splice(idx,1);
+  });
+  state.sandbox[to].push(id);
+  logEvent(`Moved ${id} to ${to}`);
+  renderSandbox(); saveState();
+}
+function showHandActionSheet(cid){
+  const modal = document.getElementById('gestureSheet');
+  const content = modal.querySelector('.content');
+  const c = state.cards.find(x=>x.id===cid);
+  content.innerHTML = `<div class="row" style="justify-content: space-between;"><h3>Card Action</h3><button class="secondary small" id="closeGestures">Close</button></div>
+    <div class="card"><div class="badge">Cost ${c?.cost ?? '?'}</div><button class="full" id="playCard">Play</button><button class="secondary full" id="inspectCard">Inspect</button><button class="secondary full" id="editCard">Program/Edit</button></div>`;
+  toggleModal('gestureSheet', true);
+  document.getElementById('closeGestures').addEventListener('pointerdown', ()=>toggleModal('gestureSheet', false));
+  document.getElementById('playCard').addEventListener('pointerdown', ()=>{ moveCard(cid,'handA','fieldA'); toggleModal('gestureSheet', false); });
+  document.getElementById('inspectCard').addEventListener('pointerdown', ()=>{ alertCard(cid); });
+  document.getElementById('editCard').addEventListener('pointerdown', ()=>{ openCardEditor(cid); toggleModal('gestureSheet', false); setTab('cards'); });
+}
+function alertCard(cid){
+  const c = state.cards.find(x=>x.id===cid);
+  alert(`${c.name}\n${c.rules}`);
+}
+function drawCard(player){
+  const baseDeck = state.cards.map(c=>c.id);
+  if(!baseDeck.length){ logEvent('No cards to draw'); return; }
+  const deck = state.sandbox.deterministic ? shuffle(baseDeck, state.sandbox.seed) : baseDeck;
+  const draw = deck[(state.sandbox.drawIndex++) % deck.length];
+  if(player==='A') state.sandbox.handA.push(draw); else state.sandbox.handB.push(draw);
+  logEvent(`Player ${player} draws ${draw}${state.sandbox.deterministic?' (seeded)':''}`);
+  renderSandbox(); saveState();
+}
+function resetBoard(){
+  state.sandbox.fieldA=[]; state.sandbox.fieldB=[]; state.sandbox.handA=[]; state.sandbox.handB=[]; logEvent('Board reset'); renderSandbox(); saveState();
+}
+function logEvent(msg){
+  const stamp = new Date().toLocaleTimeString();
+  state.sandbox.log.push(`[${stamp}] ${msg}`);
+  if(state.sandbox.log.length>80) state.sandbox.log = state.sandbox.log.slice(-80);
+}
+function addCardToZone(zone){
+  const deck = shuffle(state.cards.map(c=>c.id), state.sandbox.seed);
+  const next = deck[(state.sandbox.drawIndex++) % deck.length];
+  state.sandbox[zone].push(next);
+  logEvent(`Added ${next} to ${zone}`);
+  renderSandbox(); saveState();
+}
+
+// ------------------------------------------------------------
+// Metrics Tab
+// ------------------------------------------------------------
+function updateMetrics(){
+  const avgCost = state.cards.reduce((a,c)=>a+c.cost,0)/state.cards.length;
+  const avgAtk = state.cards.reduce((a,c)=>a+c.attack,0)/state.cards.length;
+  const uniqueTags = new Set(state.cards.flatMap(c=>c.tags||[])).size;
+  const favoriteCount = state.cards.filter(c=>c.favorite).length;
+  const costBuckets = [0,1,2,3,4,5].map(i=> state.cards.filter(c=>Math.min(c.cost,5)===i).length);
+  state.metrics = {
+    avgGameLen: Math.round(10 + avgCost),
+    resourceCurve: avgCost,
+    cardAdvantage: (avgAtk/3).toFixed(1),
+    damagePerTurn: Math.round(avgAtk/2+3),
+    triggerCounts: state.mechanics.flatMap(c=>c.modules.filter(m=>m.on)).length,
+    weirdness: Math.round(40 + (state.mechanics.flatMap(c=>c.modules.filter(m=>m.on)).length*3)),
+    deckSize: state.cards.length,
+    uniqueTags,
+    favoriteCount,
+    costBuckets
+  };
+}
+function renderMetrics(){
+  const wrap = document.getElementById('metrics');
+  updateMetrics();
+  wrap.innerHTML='';
+  const cards = document.createElement('div');
+  cards.className='grid-two';
+  const entries = [
+    {title:'Avg game length (turns)', val: state.metrics.avgGameLen},
+    {title:'Resource curve usage', val: state.metrics.resourceCurve},
+    {title:'Card advantage proxy', val: state.metrics.cardAdvantage},
+    {title:'Damage / turn', val: state.metrics.damagePerTurn},
+    {title:'Mechanic triggers', val: state.metrics.triggerCounts},
+    {title:'Weirdness score', val: state.metrics.weirdness},
+    {title:'Deck size', val: state.metrics.deckSize},
+    {title:'Unique tags', val: state.metrics.uniqueTags},
+    {title:'Favorites', val: state.metrics.favoriteCount},
+    {title:'Favorite ratio', val: state.metrics.deckSize? `${Math.round((state.metrics.favoriteCount/state.metrics.deckSize)*100)}%`:'0%'}
+  ];
+  entries.forEach(ent=>{
+    const c = document.createElement('div'); c.className='card'; c.innerHTML = `<h4>${ent.title}</h4><div style="font-size:26px; font-weight:800;">${ent.val}</div><div class="inline-chart">${renderBar(ent.val)}</div>`; cards.appendChild(c);
+  });
+  wrap.appendChild(cards);
+  const curve = document.createElement('div');
+  curve.className='card';
+  const maxBucket = Math.max(...state.metrics.costBuckets,1);
+  curve.innerHTML = `<h4>Cost Curve</h4><div class="inline-chart">${state.metrics.costBuckets.map((b,i)=>`<div style="height:${(b/maxBucket)*40}px;" title="Cost ${i}">${b}</div>`).join('')}</div>`;
+  wrap.appendChild(curve);
+  const novelty = document.createElement('div');
+  novelty.className='card';
+  const breakdown = [
+    'Stack + Lanes synergy: +12','Alt win condition with status economy: +8','Seeded variance knobs: +6','Synergy tags overlap: +5'
+  ];
+  novelty.innerHTML = `<h4>Novelty Breakdown</h4><ul>${breakdown.map(b=>`<li>${b}</li>`).join('')}</ul><button class="secondary" id="genIdeas">Generate Ideas from This Combo</button><div id="ideaBox"></div>`;
+  wrap.appendChild(novelty);
+  document.getElementById('genIdeas').addEventListener('pointerdown', ()=>{
+    const actives = state.mechanics.flatMap(c=>c.modules.filter(m=>m.on).map(m=>m.title));
+    const pair = actives.slice(0,2).join(' + ') || 'Core set';
+    const ideas = [
+      `${pair}: create a mini-event where lanes shift buffs each turn`,
+      `${pair}: alt win that stacks marks to detonate`,
+      `${pair}: draft chaos shards that reward precise resource math`,
+      `${pair}: tech beasts that convert status into resources`,
+      `${pair}: runes that unlock new DSL actions mid-match`
+    ];
+    document.getElementById('ideaBox').innerHTML = ideas.map(i=>`<div class="badge">${i}</div>`).join('');
+  });
+}
+function renderBar(val){
+  const bars = new Array(6).fill(0).map((_,i)=>`<div style="height:${Math.min(40, val + (i*2))}px;"></div>`).join('');
+  return bars;
+}
+
+// ------------------------------------------------------------
+// Global UI / Settings
+// ------------------------------------------------------------
+function renderPanels(){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById(state.tab).classList.add('active');
+  if(state.tab==='mechanics') renderMechanics();
+  if(state.tab==='ruleset') renderRuleset();
+  if(state.tab==='cards') renderCards();
+  if(state.tab==='sandbox') renderSandbox();
+  if(state.tab==='metrics') renderMetrics();
+}
+function toggleModal(id, show){ document.getElementById(id).style.display = show?'flex':'none'; }
+function openGestureGuide(){
+  const modal = document.getElementById('gestureSheet');
+  const content = modal.querySelector('.content');
+  content.innerHTML = `<div class="row" style="justify-content: space-between; align-items: center;">
+      <h3>Quick Gestures</h3>
+      <button class="secondary small" id="closeGestures">Close</button>
+    </div>
+    <ul>
+      <li>Swipe left/right: switch tabs</li>
+      <li>Long-press a card: open context menu</li>
+      <li>Drag card: move between zones</li>
+      <li>Two-finger pan: (optional) board pan</li>
+    </ul>`;
+  toggleModal('gestureSheet', true);
+  document.getElementById('closeGestures').addEventListener('pointerdown', ()=>toggleModal('gestureSheet', false));
+}
+function setupNavigation(){
+  document.querySelectorAll('.bottom-nav button').forEach(btn=>{
+    btn.addEventListener('pointerdown', ()=> setTab(btn.dataset.tab));
+  });
+}
+function setupPalette(){
+  const actions = [
+    {name:'Generate cocktail', fn:generateCocktail},
+    {name:'Mutate', fn:()=>mutateRuleset(1)},
+    {name:'New card', fn:()=>openCardEditor(null)},
+    {name:'Reset demo', fn:()=>{ state = defaultState(); rulesetChanged('reset demo'); renderPanels(); }},
+    {name:'Refresh demo deck (keep custom)', fn:()=>{ regenerateDemoCards('palette refresh'); saveState(); renderPanels(); }},
+    {name:'Export ruleset/cards', fn:()=>{ document.getElementById('exportText').value = JSON.stringify({version:1, mechanics:state.mechanics, cards:state.cards}, null, 2); toggleModal('exportSheet', true); }},
+    {name:'Open gestures', fn:()=>openGestureGuide()},
+    {name:'Open how-to', fn:()=>toggleModal('howToModal', true)},
+    {name:'Go to metrics', fn:()=>{ setTab('metrics'); }}
+  ];
+  const box = document.getElementById('paletteActions');
+  const renderList = (query='')=>{
+    box.innerHTML='';
+    actions.filter(a=>a.name.toLowerCase().includes(query.toLowerCase())).forEach(a=>{
+      const row=document.createElement('div'); row.className='list-row'; row.textContent=a.name; row.addEventListener('pointerdown', ()=>{ a.fn(); toggleModal('palette', false); }); box.appendChild(row);
+    });
+  };
+  renderList();
+  document.getElementById('paletteSearch').addEventListener('input', e=>renderList(e.target.value));
+  const openPalette = ()=>{ toggleModal('palette', true); document.getElementById('paletteSearch').focus(); };
+  document.getElementById('paletteBtn').addEventListener('pointerdown', openPalette);
+  document.getElementById('closePalette').addEventListener('pointerdown', ()=>toggleModal('palette', false));
+  document.addEventListener('keydown', e=>{ if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){ e.preventDefault(); openPalette(); } });
+}
+function setupExport(){
+  document.getElementById('closeExport').addEventListener('pointerdown', ()=>toggleModal('exportSheet', false));
+  document.getElementById('copyExport').addEventListener('pointerdown', ()=>{ const t=document.getElementById('exportText'); t.select(); if(navigator.clipboard){ navigator.clipboard.writeText(t.value); } else { document.execCommand('copy'); } });
+  document.getElementById('importData').addEventListener('pointerdown', ()=>{
+    try{
+      const data = JSON.parse(document.getElementById('exportText').value);
+      if(data.version){
+        state.mechanics=data.mechanics;
+        state.cards=data.cards;
+        state.sandbox.handA = state.cards.slice(0,5).map(c=>c.id);
+        state.sandbox.handB = state.cards.slice(5,10).map(c=>c.id);
+        state.sandbox.fieldA = [];
+        state.sandbox.fieldB = [];
+        if(data.sandbox){ state.sandbox.seed=data.sandbox.seed||state.sandbox.seed; state.sandbox.deterministic=!!data.sandbox.deterministic; state.sandbox.drawIndex=0; }
+        updateMetrics();
+        saveState();
+        renderPanels();
+        alert('Import successful');
+      }
+    }catch(e){ alert('Import failed: '+ e.message); }
+  });
+}
+function setupModals(){
+  document.getElementById('closeGestures').addEventListener('pointerdown', ()=>toggleModal('gestureSheet', false));
+  document.getElementById('closeEditor').addEventListener('pointerdown', ()=>toggleModal('cardEditor', false));
+  document.getElementById('closeHowTo').addEventListener('pointerdown', ()=>toggleModal('howToModal', false));
+  document.getElementById('openGesturesFromHow').addEventListener('pointerdown', ()=>{ toggleModal('howToModal', false); openGestureGuide(); });
+}
+function setupGestures(){
+  let startX=0;
+  document.body.addEventListener('pointerdown', e=>{ startX = e.clientX; });
+  document.body.addEventListener('pointerup', e=>{ const dx = e.clientX - startX; if(Math.abs(dx)>120){ const tabs=['mechanics','ruleset','cards','sandbox','metrics']; const idx=tabs.indexOf(state.tab); const next = dx<0?Math.min(idx+1, tabs.length-1):Math.max(idx-1,0); setTab(tabs[next]); } });
+  document.addEventListener('keydown', e=>{ if(e.key==='ArrowLeft'||e.key==='ArrowRight'){ const tabs=['mechanics','ruleset','cards','sandbox','metrics']; const idx=tabs.indexOf(state.tab); const next = e.key==='ArrowRight'?Math.min(idx+1, tabs.length-1):Math.max(idx-1,0); setTab(tabs[next]); } });
+}
+function setupUndoRedo(){
+  document.getElementById('undoBtn').addEventListener('pointerdown', ()=>{
+    const prev = state.history.pop(); if(prev){ state.future.push(clone(state)); state = prev; renderPanels(); }
+  });
+  document.getElementById('redoBtn').addEventListener('pointerdown', ()=>{
+    const next = state.future.pop(); if(next){ state.history.push(clone(state)); state = next; renderPanels(); }
+  });
+}
+function applySettings(){
+  document.body.classList.toggle('high-contrast', state.settings.highContrast);
+  document.body.classList.remove('small-text','large-text');
+  if(state.settings.textScale==='s') document.body.classList.add('small-text');
+  if(state.settings.textScale==='l') document.body.classList.add('large-text');
+}
+function renderSettingsFooter(){
+  const footer = document.createElement('div');
+  footer.className='card';
+  footer.innerHTML = `<div class="row"><button class="secondary" id="toggleContrast">High Contrast ${state.settings.highContrast?'On':'Off'}</button><button class="secondary" id="textSize">Text ${state.settings.textScale.toUpperCase()}</button><button class="secondary" id="toggleHaptics">Haptics ${state.settings.haptics?'On':'Off'}</button><button class="secondary" id="howTo">How to use (Tablet)</button><div class="badge" id="lastSavedBadge">Saved ${state.lastSaved || 'n/a'}</div></div>`;
+  document.querySelector('main').appendChild(footer);
+  document.getElementById('toggleContrast').addEventListener('pointerdown', ()=>{ state.settings.highContrast=!state.settings.highContrast; applySettings(); saveState(false); });
+  document.getElementById('textSize').addEventListener('pointerdown', ()=>{ const cycle={'s':'m','m':'l','l':'s'}; state.settings.textScale=cycle[state.settings.textScale]; applySettings(); saveState(false); });
+  document.getElementById('toggleHaptics').addEventListener('pointerdown', ()=>{ state.settings.haptics=!state.settings.haptics; saveState(false); });
+  document.getElementById('howTo').addEventListener('pointerdown', ()=>{ toggleModal('howToModal', true); });
+}
+
+// ------------------------------------------------------------
+// Initialization
+// ------------------------------------------------------------
+renderPanels();
+setupNavigation();
+setupPalette();
+setupExport();
+setupModals();
+setupGestures();
+setupUndoRedo();
+approveFab();
+renderSettingsFooter();
+applySettings();
+rulesetChanged('initial sync', false);
+document.getElementById('versionLabel').innerText = `v${APP_VERSION}`;
+setupHeaderToggles();
+updateHeaderSummary();
+
+function approveFab(){
+  document.getElementById('newCardFab').addEventListener('pointerdown', ()=>{ openCardEditor(null); });
+}
+function setupHeaderToggles(){
+  document.getElementById('contrastQuick').addEventListener('pointerdown', ()=>{ state.settings.highContrast=!state.settings.highContrast; applySettings(); saveState(false); });
+}
+function updateHeaderSummary(){
+  const active = state.mechanics.flatMap(c=>c.modules.filter(m=>m.on).map(m=>m.title)).slice(0,3).join(', ');
+  document.getElementById('headerSummary').innerText = active || 'No mechanics active';
+}
+
+</script>
+</body>
+</html>
